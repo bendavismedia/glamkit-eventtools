@@ -29,7 +29,7 @@ else:
 
 if DJANGO14:
     from .filters import IsGeneratedListFilter #needs django 1.4
-    
+
 MPTT_ADMIN_LEVEL_INDENT = getattr(settings, 'MPTT_ADMIN_LEVEL_INDENT', 10)
 
 
@@ -107,12 +107,12 @@ def OccurrenceAdmin(OccurrenceModel):
         readonly_fields = ('generated_by', )
         actions = [_cancel, _fully_booked, _clear_status, _convert_to_oneoff, _remove_occurrences, _wipe_occurrences]
         date_hierarchy = 'start'
-        
+
         def __init__(self, *args, **kwargs):
             super(_OccurrenceAdmin, self).__init__(*args, **kwargs)
             self.event_model = self.model.EventModel()
             self.list_display_links = (None,) #have to specify it here to avoid Django complaining
-  
+
         def edit_link(self, occurrence):
             if occurrence.generated_by is not None:
                 change_url = reverse(
@@ -156,7 +156,7 @@ def OccurrenceAdmin(OccurrenceModel):
         def from_a_repeating_occurrence(self, occurrence):
             return occurrence.generated_by is not None
         from_a_repeating_occurrence.boolean = True
-  
+
         def get_urls(self):
             """
             Add the event-specific occurrence list.
@@ -177,7 +177,7 @@ def OccurrenceAdmin(OccurrenceModel):
                 url(r'for_event/(?P<event_id>\d+)/(?P<object_id>\d+)/$',
                     self.redirect_to_change_view),
             ) + super(_OccurrenceAdmin, self).get_urls()
-      
+
         def changelist_view_for_event(self, request, event_id=None, extra_context=None):
             if event_id:
                 request._event = get_object_or_404(
@@ -198,20 +198,20 @@ def OccurrenceAdmin(OccurrenceModel):
                 args=(event_id,))
             return super(_OccurrenceAdmin, self).changelist_view(
                 request, extra_context)
-     
+
         def redirect_to_change_view(self, request, event_id, object_id):
             return redirect('%s:%s_%s_change' % (
                     self.admin_site.name,
                     OccurrenceModel._meta.app_label,
                     OccurrenceModel._meta.module_name), object_id)
-     
+
         def queryset(self, request):
             if hasattr(request, '_event'):
                 return request._event.occurrences_in_listing()
             else:
                 qs = super(_OccurrenceAdmin, self).queryset(request)
             return qs
-     
+
         def get_actions(self, request):
             # remove 'delete' action
             actions = super(_OccurrenceAdmin, self).get_actions(request)
@@ -228,16 +228,21 @@ def EventForm(EventModel):
             model = EventModel
     return _EventForm
 
-def EventAdmin(EventModel, SuperModel=MPTTModelAdmin, show_exclusions=False, show_generator=True, *args, **kwargs):
+
+class NoopMixin(object):
+    pass
+
+def EventAdmin(EventModel, SuperModel=MPTTModelAdmin, Mixin=NoopMixin, show_exclusions=False, show_generator=True, *args, **kwargs):
     """ pass in the name of your EventModel subclass to use this admin. """
-    
-    class _EventAdmin(SuperModel):
+
+    class _EventAdmin(Mixin, SuperModel):
         form = EventForm(EventModel)
         occurrence_inline = OccurrenceInline(EventModel.OccurrenceModel())
         list_display = ['unicode_bold_if_listed', 'occurrence_link', 'season', 'status'] # leave as list to allow extension
         change_form_template = kwargs['change_form_template'] if 'change_form_template' in kwargs else 'admin/eventtools/event.html'
         save_on_top = kwargs['save_on_top'] if 'save_on_top' in kwargs else True
-        prepopulated_fields = {'slug': ('title', )}
+        readonly_fields = ('slug',)
+        # prepopulated_fields = {'slug': ('title', )}
         search_fields = ('title',)
 
 #        def queryset(self, request):
@@ -252,7 +257,7 @@ def EventAdmin(EventModel, SuperModel=MPTTModelAdmin, show_exclusions=False, sho
 
             if show_exclusions:
                 eventtools_inlines.append(ExclusionInline(EventModel.ExclusionModel()))
-            
+
             for inline_class in eventtools_inlines:
                 inline_instance = inline_class(self.model, self.admin_site)
                 inline_instances.append( inline_instance )
@@ -268,7 +273,7 @@ def EventAdmin(EventModel, SuperModel=MPTTModelAdmin, show_exclusions=False, sho
             # Append our eventtools inlines
             self.append_eventtools_inlines(inline_instances)
             return inline_instances
-            
+
 
         def __init__(self, *args, **kwargs):
             super(_EventAdmin, self).__init__(*args, **kwargs)
@@ -410,7 +415,7 @@ def ExclusionInline(ExclusionModel):
     class _ExclusionInline(admin.TabularInline):
         model = ExclusionModel
         extra = 0
-        fields = ('start',)        
+        fields = ('start',)
     return _ExclusionInline
 
 def GeneratorInline(GeneratorModel):
@@ -418,5 +423,5 @@ def GeneratorInline(GeneratorModel):
         model = GeneratorModel
         extra = 0
     return _GeneratorInline
-    
+
 admin.site.register(Rule)
