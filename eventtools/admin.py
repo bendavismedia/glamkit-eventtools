@@ -241,8 +241,7 @@ def EventAdmin(EventModel, SuperModel=MPTTModelAdmin, Mixin=NoopMixin, show_excl
         list_display = ['unicode_bold_if_listed', 'occurrence_link', 'season', 'status'] # leave as list to allow extension
         change_form_template = kwargs['change_form_template'] if 'change_form_template' in kwargs else 'admin/eventtools/event.html'
         save_on_top = kwargs['save_on_top'] if 'save_on_top' in kwargs else True
-        readonly_fields = ('slug',)
-        # prepopulated_fields = {'slug': ('title', )}
+        prepopulated_fields = {'slug': ('title', )}
         search_fields = ('title',)
 
 #        def queryset(self, request):
