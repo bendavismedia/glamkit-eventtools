@@ -20,7 +20,7 @@ class EventQuerySet(models.query.QuerySet):
     # much as you may be tempted to add "starts_between" and other
     # OccurrenceQuerySet methods, resist (for the sake of DRYness and some
     # performance). Instead, use OccurrenceQuerySet.starts_between().events().
-    # We have to relax this for opening and closing occurrences, as they're 
+    # We have to relax this for opening and closing occurrences, as they're
     # relevant to a particular event.
 
     def in_listings(self):
@@ -63,7 +63,7 @@ class EventQuerySet(models.query.QuerySet):
         """
         return self.model.OccurrenceModel().objects\
             .filter(event__in=self)
-                
+
     def opening_occurrences(self):
         """
         Returns the opening occurrences for the events in this queryset.
@@ -75,7 +75,7 @@ class EventQuerySet(models.query.QuerySet):
             except AttributeError:
                 pass
         return self.occurrences().filter(pk__in=pks)
-        
+
     def closing_occurrences(self):
         """
         Returns the closing occurrences for the events in this queryset.
@@ -87,7 +87,7 @@ class EventQuerySet(models.query.QuerySet):
             except AttributeError:
                 pass
         return self.occurrences().filter(pk__in=pks)
-                
+
     #some simple annotations
     def having_occurrences(self):
         return self.annotate(num_occurrences=Count('occurrences'))\
@@ -99,11 +99,11 @@ class EventQuerySet(models.query.QuerySet):
 
     def having_no_occurrences(self):
         return self.having_n_occurrences(0)
-        
-        
+
+
 class EventTreeManager(TreeManager):
-    
-    def get_query_set(self): 
+
+    def get_query_set(self):
         return EventQuerySet(self.model).order_by(
             self.tree_id_attr, self.left_attr)
 
@@ -119,27 +119,27 @@ class EventTreeManager(TreeManager):
         return self.get_query_set().closing_occurrences(*args, **kwargs)
 
     def having_occurrences(self):
-        return self.get_query_set().having_occurrences()        
+        return self.get_query_set().having_occurrences()
     def having_n_occurrences(self, n):
-        return self.get_query_set().having_n_occurrences(n)        
+        return self.get_query_set().having_n_occurrences(n)
     def having_no_occurrences(self):
-        return self.get_query_set().having_no_occurrences()        
-            
+        return self.get_query_set().having_no_occurrences()
+
 class EventOptions(object):
     """
     Options class for Event models. Use this as an inner class called EventMeta.
     ie.:
-    
+
     class MyModel(EventModel):
         class EventMeta:
             fields_to_inherit = ['name', 'slug', 'description']
-        ...     
+        ...
     """
-    
+
     fields_to_inherit = []
     event_manager_class = EventTreeManager
     event_manager_attr = 'eventobjects'
-    
+
     def __init__(self, opts):
         # Override defaults with options provided
         if opts:
@@ -160,7 +160,7 @@ class EventModelBase(MPTTModelBase):
         class_dict['_event_meta'] = EventOptions(event_opts)
         cls = super(EventModelBase, meta) \
             .__new__(meta, class_name, bases, class_dict)
-                
+
         try:
             EventModel
         except NameError:
@@ -180,12 +180,12 @@ class EventModelBase(MPTTModelBase):
                     )
                 except models.FieldDoesNotExist:
                     continue
-            
+
             # Add a custom manager
             assert issubclass(
                 cls._event_meta.event_manager_class, EventTreeManager
             ), 'Custom Event managers must subclass EventTreeManager.'
-            
+
             # since EventTreeManager subclasses TreeManager, it also needs the
             # mptt options. The code below mimics the behaviour in
             # mptt.models.MPTTModelBase.register
@@ -196,7 +196,7 @@ class EventModelBase(MPTTModelBase):
             setattr(cls, '_event_manager',
                 getattr(cls, cls._event_meta.event_manager_attr)
             )
-            
+
             # override the treemanager with self too,
             # so we don't need to recast all querysets
             manager.contribute_to_class(cls, '_tree_manager')
@@ -206,7 +206,7 @@ class EventModelBase(MPTTModelBase):
 
 class EventModel(MPTTModel):
     __metaclass__ = EventModelBase
-    
+
     parent = models.ForeignKey('self',
         null=True, blank=True, related_name='children',
         verbose_name=_('parent'),
@@ -215,7 +215,7 @@ class EventModel(MPTTModel):
     title = models.CharField(_('title'), max_length=255)
     slug = models.SlugField(_("URL name"), unique=True, help_text=_("This is used in\
      the event's URL, and should be unique and unchanging."))
-    season_description = models.CharField(_("season"), blank=True, null=True, 
+    season_description = models.CharField(_("season"), blank=True, null=True,
         max_length=200, help_text=_("a summary description of when this event \
         is on (e.g. 24 August - 12 September 2012). One will be generated from \
         the occurrences if not provided)")
@@ -227,8 +227,8 @@ class EventModel(MPTTModel):
 
     class Meta:
         abstract = True
-        ordering = ['tree_id', 'lft'] 
-    
+        ordering = ['tree_id', 'lft']
+
     def __unicode__(self):
         return self.title
 
@@ -245,7 +245,7 @@ class EventModel(MPTTModel):
         Returns the class used for generators
         """
         return cls.generators.related.model
-        
+
     @classmethod
     def ExclusionModel(cls):
         """
@@ -271,14 +271,14 @@ class EventModel(MPTTModel):
         [g.save() for g in endless_generators]
 
         return r
-                
+
     def reload(self):
         """
-        Used for refreshing events in a queryset that may have changed.        
+        Used for refreshing events in a queryset that may have changed.
         Call with x = x.reload() - it doesn't change self.
         """
         return type(self)._event_manager.get(pk=self.pk)
-        
+
     def _cascade_changes_to_children(self):
         """
         Go through the fields_to_inherit, and apply my values to my children,
@@ -295,7 +295,7 @@ class EventModel(MPTTModel):
         if self.pk:
             saved_self = type(self)._event_manager.get(pk=self.pk)
             attribs = type(self)._event_meta.fields_to_inherit
-        
+
             for child in self.get_children():
                 for a in attribs:
                     inheritable_attr = "inheritable_%s" % a
@@ -328,7 +328,7 @@ class EventModel(MPTTModel):
             return self.occurrences_in_listing().all()[0]
         except IndexError:
             return None
-        
+
     def closing_occurrence(self):
         try:
             return self.occurrences_in_listing().all().reverse()[0]
@@ -337,7 +337,7 @@ class EventModel(MPTTModel):
 
     def get_absolute_url(self):
         return reverse('events:event', kwargs={'event_slug': self.slug })
-        
+
     def is_finished(self):
         """ the event has finished if the closing occurrence has finished. """
         closing_occurrence = self.closing_occurrence()
@@ -365,19 +365,19 @@ class EventModel(MPTTModel):
         """
         if self.season_description:
             return self.season_description
-        
+
         o = self.opening_occurrence()
         c = self.closing_occurrence()
-        
+
         if o and c:
             first = localtime(o.start).date()
             last = localtime(c.start).date()
             return pprint_date_span(first, last)
-            
+
         return None
 
     def sessions(self):
-        return self.sessions_description
+        return self.sessions_description or ''
 
     def occurrence_statuses(self):
         #returns a set of statuses of my occurrences
