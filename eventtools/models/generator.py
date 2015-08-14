@@ -4,7 +4,7 @@
 from django.db import models, transaction
 from django.db.models.base import ModelBase
 from django.utils.translation import ugettext, ugettext_lazy as _
-from django.utils.timezone import get_current_timezone, localtime
+from django.utils import timezone
 from django.core import exceptions
 
 from dateutil import rrule
@@ -112,18 +112,21 @@ class GeneratorModel(XTimespanModel):
         drop_dead_date = datetime.combine(self.repeat_until or date.today() \
             + settings.DEFAULT_GENERATOR_LIMIT, time.max)
 
+        tz = timezone.get_current_timezone()
+
         # We may need a timezone-aware datetime if our rule generates
         # non-naive datetime occurrences
-        drop_dead_date_with_tzinfo = drop_dead_date.replace(
-            tzinfo=get_current_timezone())
+        drop_dead_date_tzaware = timezone.make_aware(drop_dead_date, tz)
 
         # Yield rule's occurrence datetimes up until "drop dead" date(time)
-        rule = self.rule.get_rrule(dtstart=localtime(self.start))
+        # Note: we must make start date naive when initializing the rrule, then
+        # convert it back to aware within the loop
+        rule = self.rule.get_rrule(dtstart=timezone.make_naive(self.start, tz))
         date_iter = iter(rule)
         while True:
-            d = date_iter.next()
+            d = timezone.make_aware(date_iter.next(), tz)
             if d.tzinfo:
-                dddate = drop_dead_date_with_tzinfo
+                dddate = drop_dead_date_tzaware
             else:
                 dddate = drop_dead_date
             if d > dddate:
@@ -274,7 +277,7 @@ class GeneratorModel(XTimespanModel):
 
     def robot_description(self):
         r = "%s, repeating %s" % (
-            pprint_datetime_span(localtime(self.start), localtime(self.end())),
+            pprint_datetime_span(timezone.localtime(self.start), timezone.localtime(self.end())),
             unicode(self.rule).lower(),
         )
         
